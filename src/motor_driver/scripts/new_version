@@ -1,0 +1,128 @@
+#!/usr/bin/env python
+# license removed for brevity
+import rospy
+from std_msgs.msg import String
+from geometry_msgs.msg import Twist
+from sensor_msgs.msg import LaserScan
+import serial
+import os
+
+class driver:
+    def __init__(self):
+        # init ros
+        rospy.init_node('car_driver', anonymous=True)
+        rospy.Subscriber('/cmd_vel', Twist, self.get_cmd_vel)
+	self.scan_sub = rospy.Subscriber('scan', LaserScan, self.scan_callback)
+        self.ser = serial.Serial('/dev/ttyACM0', 115200)
+	self.left_range = 1
+	self.right_range = 1
+	self.back_range=3
+	self.counter = 0
+	self.scanning = False
+
+        self.get_arduino_message()
+
+    # get cmd_vel message, and get linear velocity and angular velocity
+    def get_cmd_vel(self, data):
+        x = data.linear.x
+        angular = data.angular.z
+        self.send_cmd_to_arduino(x, angular)
+
+    def scan_callback(self, msg):
+	self.right_range = min(msg.ranges[270:359])
+	self.left_range = min(msg.ranges[0:90])
+	self.back_range= min(msg.ranges[160:200])
+
+    def override_left(self):
+	if (self.right_range < 0.6):
+            print("override left")
+	    return True
+        else:
+            return False
+
+    def override_right(self):
+        if (self.left_range < 0.6):
+            print("override right")
+	    return True
+	else:
+            return False
+
+    # translate x, and angular velocity to PWM signal of each wheels, and send to arduino
+    def send_cmd_to_arduino(self, x, angular):
+        # calculate right and left wheels' signal
+
+	RIGHT = 'RIGHT'
+	LEFT = 'LEFT'
+	STRAIGHT = 'STRAIGHT'
+	BACK = 'BACK'
+
+	commands = []
+
+	if self.scanning:
+	    print('START SCANNING')
+	    rospy.sleep(10.)
+	    self.scanning = False
+	    print('Done scanning')
+
+	print('counter ' + str(self.counter))
+
+	if self.counter >= 200:
+	    print('GOING TO START SCANNING')
+	    os.system("rosservice call /global_localization \"{}\"")
+	    commands.append(RIGHT)
+	    self.scanning = True
+	    self.counter = 0
+	else:
+	    print('DEFAULT SHIT')
+	    if angular > 0:
+	        commands.append(RIGHT)
+	    elif angular < 0:
+	    	commands.append(LEFT)
+	
+	    if x < 0:
+	    	commands.append(BACK)
+	    elif x >= 0:
+	    	commands.append(STRAIGHT)
+
+	    self.counter += 1
+
+	left, right = (0,0)
+
+	if RIGHT in commands and STRAIGHT in commands:
+	    left, right = (100, -250)
+	elif LEFT in commands and STRAIGHT in commands:
+	    left, right = (250, -100)
+	elif LEFT in commands and BACK in commands:
+	    left, right = (-100, 250)
+	elif RIGHT in commands and BACK in commands:
+	    left, right = (-250, 100)
+	elif STRAIGHT in commands:
+	    left, right = (250, -150)
+	elif BACK in commands:
+	    left, right = (-250, 150)
+	elif RIGHT in commands:
+	    left, right = (-100, -100)
+	elif LEFT in commands:
+	    left, right = (100, 100)
+
+        # format for arduino
+        message = "{},{}*".format(left, right)
+        print message
+        # send by serial 
+        self.ser.write(message)
+
+    # receive serial text from arduino and publish it to '/arduino' message
+    def get_arduino_message(self):
+        pub = rospy.Publisher('arduino', String, queue_size=10)
+        r = rospy.Rate(10)
+        while not rospy.is_shutdown():
+            message = self.ser.readline()
+            pub.publish(message)
+            r.sleep()
+	pub.publish("0,0*")
+
+if __name__ == '__main__':
+    try:
+        d = driver()
+    except rospy.ROSInterruptException: 
+        pass

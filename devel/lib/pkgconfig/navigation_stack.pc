@@ -1,0 +1,8 @@
+prefix=/home/niroigen/final_catkin_ws/devel
+
+Name: navigation_stack
+Description: Description of navigation_stack
+Version: 0.0.0
+Cflags: 
+Libs: -L/home/niroigen/final_catkin_ws/devel/lib 
+Requires: 

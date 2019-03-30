@@ -1,0 +1,2 @@
+This imu data is record in ENU coordinate
+acc_x	acc_y	acc_z	gyro_x	gyro_y	gryo_z

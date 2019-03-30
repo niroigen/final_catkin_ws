@@ -1,0 +1,2 @@
+/usr/bin/avr-ar qc libmega2560_Wire.a  CMakeFiles/mega2560_Wire.dir/usr/share/arduino/libraries/Wire/Wire.cpp.obj CMakeFiles/mega2560_Wire.dir/usr/share/arduino/libraries/Wire/utility/twi.c.obj
+/usr/bin/avr-ranlib libmega2560_Wire.a

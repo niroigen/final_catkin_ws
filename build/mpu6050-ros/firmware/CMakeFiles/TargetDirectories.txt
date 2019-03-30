@@ -1,0 +1,9 @@
+/home/niroigen/final_catkin_ws/build/mpu6050-ros/firmware/CMakeFiles/edit_cache.dir
+/home/niroigen/final_catkin_ws/build/mpu6050-ros/firmware/CMakeFiles/rebuild_cache.dir
+/home/niroigen/final_catkin_ws/build/mpu6050-ros/firmware/CMakeFiles/upload.dir
+/home/niroigen/final_catkin_ws/build/mpu6050-ros/firmware/CMakeFiles/mpu6050_ros-upload.dir
+/home/niroigen/final_catkin_ws/build/mpu6050-ros/firmware/CMakeFiles/mpu6050_ros-size.dir
+/home/niroigen/final_catkin_ws/build/mpu6050-ros/firmware/CMakeFiles/uno_CORE.dir
+/home/niroigen/final_catkin_ws/build/mpu6050-ros/firmware/CMakeFiles/mpu6050_ros.dir
+/home/niroigen/final_catkin_ws/build/mpu6050-ros/firmware/CMakeFiles/uno_firmware.dir
+/home/niroigen/final_catkin_ws/build/mpu6050-ros/firmware/CMakeFiles/uno_Wire.dir

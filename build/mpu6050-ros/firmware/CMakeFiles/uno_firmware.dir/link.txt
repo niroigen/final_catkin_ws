@@ -1,0 +1,2 @@
+/usr/bin/avr-ar qc libuno_firmware.a  CMakeFiles/uno_firmware.dir/mpu6050_ros.cpp.obj CMakeFiles/uno_firmware.dir/I2Cdev.cpp.obj CMakeFiles/uno_firmware.dir/MPU6050.cpp.obj CMakeFiles/uno_firmware.dir/MS5837.cpp.obj CMakeFiles/uno_firmware.dir/Wire.cpp.obj CMakeFiles/uno_firmware.dir/Kalman.cpp.obj
+/usr/bin/avr-ranlib libuno_firmware.a

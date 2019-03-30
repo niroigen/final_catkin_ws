@@ -1,0 +1,144 @@
+#!/usr/bin/env python
+# license removed for brevity
+import rospy
+from std_msgs.msg import String
+from geometry_msgs.msg import Twist
+from sensor_msgs.msg import LaserScan
+import serial
+
+class driver:
+    def __init__(self):
+        # init ros
+        rospy.init_node('car_driver', anonymous=True)
+        rospy.Subscriber('/cmd_vel', Twist, self.get_cmd_vel)
+	self.scan_sub = rospy.Subscriber('scan', LaserScan, self.scan_callback)
+        self.ser = serial.Serial('/dev/ttyACM1', 115200)
+	self.left_range = 1
+	self.right_range = 1
+	self.forward_range = 3
+	self.backward_range = 3
+	self.previous_left = 0
+	self.previous_right = 0
+
+        self.get_arduino_message()
+
+    # get cmd_vel message, and get linear velocity and angular velocity
+    def get_cmd_vel(self, data):
+        x = data.linear.x
+        angular = data.angular.z
+        self.send_cmd_to_arduino(x, angular)
+
+    def scan_callback(self, msg):
+	self.right_range = min(msg.ranges[225:359])
+	self.left_range = min(msg.ranges[0:90])
+	self.back_range= min(msg.ranges[160:200])
+
+    def override_left(self):
+	if (self.right_range < 0.6):
+            print("override left")
+	    return True
+        else:
+            return False
+
+    def override_right(self):
+        if (self.left_range < 0.6):
+            print("override right")
+	    return True
+	else:
+            return False
+
+    def override_back(self):
+	forward_range = min([self.right_range, self.left_range])
+	if (forward_range < 0.3):
+	    print("override back")
+	    return True
+	else:
+	    return False
+
+    # translate x, and angular velocity to PWM signal of each wheels, and send to arduino
+    def send_cmd_to_arduino(self, x, angular):
+
+	left, right = (0,0)
+
+	max_angular = 0.24
+
+# Linear
+	if x == 0:
+	    if angular >= -1 * max_angular and angular <= -1 * max_angular + (max_angular * 0.2):
+	        left, right = (100, 100)
+	    elif angular > -1 * max_angular + (max_angular * 0.2) and angular <= -1 * max_angular + 2 * (max_angular * 0.2): # -0.192, -0.144
+	        left, right = (-90, -100)
+	    elif angular > -1 * max_angular + 2 * (max_angular * 0.2) and angular <= -1 * max_angular + 3 * (max_angular * 0.2): # -0.144, -0.096 
+		left, right = (-80, -100)
+	    elif angular > -1 * max_angular + 3 * (max_angular * 0.2) and angular <= -1 * max_angular + 4 * (max_angular * 0.2): # -0.096, -0.048 
+		left, right = (-70, -100)
+	    elif (angular > -1 * max_angular + 4 * (max_angular * 0.2) and angular <= 0) or (angular <= 2 * (max_angular * 0.2) and angular >= 0):
+		left, right = (0,0)
+	    elif angular > 2 * (max_angular * 0.2) and angular <= 3 * (max_angular * 0.2):
+		left, right = (50,50)
+	    elif angular > 3 * (max_angular * 0.2) and angular <= 4 * (max_angular * 0.2):
+		left, right = (60, 50)
+	    elif angular > 4 * (max_angular * 0.2) and angular <= max_angular:
+		left, right = (100, 100)
+	elif x > 0:
+    	    if angular >= -1 * max_angular and angular <= -1 * max_angular + (max_angular * 0.2):
+	        left, right = (150, -150)
+	    elif angular > -1 * max_angular + (max_angular * 0.2) and angular <= -1 * max_angular + 2 * (max_angular * 0.2):
+	        left, right = (175, -150)
+	    elif angular > -1 * max_angular + 2 * (max_angular * 0.2) and angular <= -1 * max_angular + 3 * (max_angular * 0.2):
+		left, right = (175, -150)
+	    elif angular > -1 * max_angular + 3 * (max_angular * 0.2) and angular <= -1 * max_angular + 4 * (max_angular * 0.2):
+		left, right = (175, -150)
+	    elif (angular > -1 * max_angular + 4 * (max_angular * 0.2) and angular <= 0) or (angular >= 0 and angular <= (max_angular * 0.2)):
+	        left, right = (250, -150)
+	    elif angular > 0 and angular <= (max_angular * 0.2):
+		left, right = (150, -150)
+	    elif angular > (max_angular * 0.2) and angular <= 2 * (max_angular * 0.2):
+		left, right = (150, -120)
+	    elif angular > 2 * (max_angular * 0.2) and angular <= 3 * (max_angular * 0.2):
+		left, right = (155, -100)
+	    elif angular > 4 * (max_angular * 0.2) and angular <= max_angular:
+		left, right = (175, -125)
+	elif x < 0:
+    	    if angular >= -1 * max_angular and angular <= -1 * max_angular + (max_angular * 0.2):
+	        pass
+	    elif angular > -1 * max_angular + (max_angular * 0.2) and angular <= -1 * max_angular + 2 * (max_angular * 0.2):
+	        pass
+	    elif angular > -1 * max_angular + 2 * (max_angular * 0.2) and angular <= -1 * max_angular + 3 * (max_angular * 0.2):
+		pass
+	    elif angular > -1 * max_angular + 3 * (max_angular * 0.2) and angular <= -1 * max_angular + 4 * (max_angular * 0.2):
+		pass
+	    elif angular > -1 * max_angular + 2 * (max_angular * 0.2) and angular < 0:
+		pass
+	    elif angular == 0:
+	        left, right = (-250, 150)
+	    elif angular > 0 and angular <= (max_angular * 0.2):
+		pass
+	    elif angular > (max_angular * 0.2) and angular <= 2 * (max_angular * 0.2):
+		pass
+	    elif angular > 2 * (max_angular * 0.2) and angular <= 3 * (max_angular * 0.2):
+		pass
+	    elif angular > 4 * (max_angular * 0.2) and angular <= max_angular:
+		pass
+	
+
+        # format for arduino
+        message = "{},{}*".format(left, right)
+        # send by serial 
+        self.ser.write(message)
+
+    # receive serial text from arduino and publish it to '/arduino' message
+    def get_arduino_message(self):
+        pub = rospy.Publisher('arduino', String, queue_size=10)
+        r = rospy.Rate(10)
+        while not rospy.is_shutdown():
+            message = self.ser.readline()
+            pub.publish(message)
+            r.sleep()
+	pub.publish("0,0*")
+
+if __name__ == '__main__':
+    try:
+        d = driver()
+    except rospy.ROSInterruptException: 
+        pass

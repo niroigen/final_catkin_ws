@@ -1,0 +1,126 @@
+#!/usr/bin/env python
+# license removed for brevity
+import rospy
+from std_msgs.msg import String
+from geometry_msgs.msg import Twist
+from sensor_msgs.msg import LaserScan
+import serial
+
+class driver:
+    def __init__(self):
+        # init ros
+        rospy.init_node('car_driver', anonymous=True)
+        rospy.Subscriber('/cmd_vel', Twist, self.get_cmd_vel)
+	self.scan_sub = rospy.Subscriber('scan', LaserScan, self.scan_callback)
+        self.ser = serial.Serial('/dev/ttyACM1', 115200)
+	self.left_range = 1
+	self.right_range = 1
+	self.forward_range = 3
+	self.backward_range = 3
+	self.previous_left = 0
+	self.previous_right = 0
+
+        self.get_arduino_message()
+
+    # get cmd_vel message, and get linear velocity and angular velocity
+    def get_cmd_vel(self, data):
+        x = data.linear.x
+        angular = data.angular.z
+        self.send_cmd_to_arduino(x, angular)
+
+    def scan_callback(self, msg):
+	self.right_range = min(msg.ranges[225:359])
+	self.left_range = min(msg.ranges[0:90])
+	self.back_range= min(msg.ranges[160:200])
+
+    def override_left(self):
+	if (self.right_range < 1):
+            print("override left")
+	    return True
+        else:
+            return False
+
+    def override_right(self):
+        if (self.left_range < 0.6):
+            print("override right")
+	    return True
+	else:
+            return False
+
+    def override_back(self):
+	forward_range = min([self.right_range, self.left_range])
+	if (forward_range < 0.3):
+	    print("override back")
+	    return True
+	else:
+	    return False
+
+    # translate x, and angular velocity to PWM signal of each wheels, and send to arduino
+    def send_cmd_to_arduino(self, x, angular):
+        # calculate right and left wheels' signal
+
+	RIGHT = 'RIGHT'
+	LEFT = 'LEFT'
+	STRAIGHT = 'STRAIGHT'
+	BACK = 'BACK'
+
+	print('Hi')
+	commands = []
+	if angular > 0.1:
+	    command = LEFT if not self.override_right() else RIGHT
+            commands.append(command)
+	elif angular < -0.1:
+	    command = RIGHT if not self.override_left() else LEFT
+	    commands.append(RIGHT)
+
+	if x < -0.2:
+	    commands.append(BACK)
+	elif x > 0 or (angular <= 0.1 and angular >= -0.11):
+	    command = STRAIGHT if not self.override_right() else RIGHT
+	    command = command if not self.override_left() else LEFT
+	    command = STRAIGHT if not self.override_back() else BACK
+	    commands.append(command)
+	elif x == 0:
+	    command = '' if not self.override_back() else BACK
+	    commands.append(command)
+
+	if LEFT in commands and STRAIGHT in commands:
+	    self.previous_left, self.previous_right = (100, -255)
+	elif RIGHT in commands and STRAIGHT in commands:
+	    self.previous_left, self.previous_right = (125, -100)
+	elif RIGHT in commands and BACK in commands:
+	    self.previous_left, self.previous_right = (-150, 100) ## swapped this with back left
+	elif LEFT in commands and BACK in commands:
+	    self.previous_left, self.previous_right = (-200, 100) ## swapped this with back right
+	elif STRAIGHT in commands:
+	    self.previous_left, self.previous_right = (250, -150)
+	elif BACK in commands:
+	    self.previous_left, self.previous_right = (-250, 150)
+	elif LEFT in commands:
+	    self.previous_left, self.previous_right = (-100, -100)
+	elif RIGHT in commands:
+	    self.previous_left, self.previous_right = (100, 100)
+	else:
+	    self.previous_left, self.previous_right = (0,0)
+
+        # format for arduino
+        message = "{},{}*".format(self.previous_left, self.previous_right)
+        print commands
+        # send by serial 
+        self.ser.write(message)
+
+    # receive serial text from arduino and publish it to '/arduino' message
+    def get_arduino_message(self):
+        pub = rospy.Publisher('arduino', String, queue_size=10)
+        r = rospy.Rate(10)
+        while not rospy.is_shutdown():
+            message = self.ser.readline()
+            pub.publish(message)
+            r.sleep()
+	pub.publish("0,0*")
+
+if __name__ == '__main__':
+    try:
+        d = driver()
+    except rospy.ROSInterruptException: 
+        pass

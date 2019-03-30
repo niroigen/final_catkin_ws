@@ -1,0 +1,8 @@
+prefix=/home/niroigen/final_catkin_ws/devel
+
+Name: rosserial_windows
+Description: Description of rosserial_windows
+Version: 0.8.0
+Cflags: 
+Libs: -L/home/niroigen/final_catkin_ws/devel/lib 
+Requires: 
